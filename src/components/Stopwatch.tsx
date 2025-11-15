@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { Play, Pause, RotateCcw, Flag } from 'lucide-react';
+import { useSettings } from '@/hooks/useSettings';
 
 interface Lap {
   time: number;
@@ -13,6 +14,7 @@ export const Stopwatch = () => {
   const [laps, setLaps] = useState<Lap[]>([]);
   const intervalRef = useRef<number>();
   const startTimeRef = useRef<number>(0);
+  const { settings, playHaptic, playSound } = useSettings();
 
   useEffect(() => {
     // Load persisted laps
@@ -43,20 +45,29 @@ export const Stopwatch = () => {
 
   const handleStartPause = () => {
     setIsRunning(!isRunning);
+    playHaptic();
+    playSound();
   };
 
   const handleReset = () => {
     setIsRunning(false);
     setTime(0);
     setLaps([]);
-    localStorage.removeItem('stopwatch_laps');
+    if (settings.autoSaveLaps) {
+      localStorage.removeItem('stopwatch_laps');
+    }
+    playHaptic();
   };
 
   const handleLap = () => {
     const lapTime = laps.length > 0 ? time - laps[laps.length - 1].time : time;
     const newLaps = [...laps, { time, lapTime }];
     setLaps(newLaps);
-    localStorage.setItem('stopwatch_laps', JSON.stringify(newLaps));
+    if (settings.autoSaveLaps) {
+      localStorage.setItem('stopwatch_laps', JSON.stringify(newLaps));
+    }
+    playHaptic();
+    playSound();
   };
 
   const formatTime = (ms: number) => {
