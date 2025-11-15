@@ -2,8 +2,10 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnalogClock } from '@/components/AnalogClock';
 import { DigitalClock } from '@/components/DigitalClock';
 import { Stopwatch } from '@/components/Stopwatch';
+import { SettingsPanel } from '@/components/SettingsPanel';
 import { useFullscreen } from '@/hooks/useFullscreen';
 import { useBattery } from '@/hooks/useBattery';
+import { useSettings } from '@/hooks/useSettings';
 import { Button } from '@/components/ui/button';
 import { Clock, Timer, Settings } from 'lucide-react';
 
@@ -12,9 +14,11 @@ type Mode = 'split' | 'stopwatch';
 const Index = () => {
   const [mode, setMode] = useState<Mode>('split');
   const [showControls, setShowControls] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [scale, setScale] = useState(1);
   const { enterFullscreen } = useFullscreen();
   const { isCharging } = useBattery();
+  const { settings, playHaptic } = useSettings();
   const [hasInitialized, setHasInitialized] = useState(false);
   const lastTapRef = useRef<number>(0);
   const hideTimeoutRef = useRef<number>();
@@ -30,7 +34,7 @@ const Index = () => {
 
   // Auto-hide controls
   useEffect(() => {
-    if (showControls) {
+    if (showControls && !showSettings) {
       if (hideTimeoutRef.current) {
         clearTimeout(hideTimeoutRef.current);
       }
@@ -43,7 +47,7 @@ const Index = () => {
         clearTimeout(hideTimeoutRef.current);
       }
     };
-  }, [showControls]);
+  }, [showControls, showSettings]);
 
   // Handle single tap and double tap
   const handleTap = useCallback(() => {
@@ -115,8 +119,10 @@ const Index = () => {
       if (Math.abs(deltaX) > 100 && Math.abs(deltaY) < 50) {
         if (deltaX > 0) {
           setMode('split');
+          playHaptic();
         } else {
           setMode('stopwatch');
+          playHaptic();
         }
       } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
         // Tap
@@ -124,7 +130,7 @@ const Index = () => {
       }
     }
     touchStartRef.current = null;
-  }, [handleTap]);
+  }, [handleTap, playHaptic]);
 
   return (
     <div 
@@ -157,7 +163,10 @@ const Index = () => {
         }`}
       >
         <Button
-          onClick={() => setMode('split')}
+          onClick={() => {
+            setMode('split');
+            playHaptic();
+          }}
           size="lg"
           variant="ghost"
           className={`rounded-full ${mode === 'split' ? 'bg-accent text-accent-foreground' : ''}`}
@@ -165,7 +174,10 @@ const Index = () => {
           <Clock className="w-6 h-6" />
         </Button>
         <Button
-          onClick={() => setMode('stopwatch')}
+          onClick={() => {
+            setMode('stopwatch');
+            playHaptic();
+          }}
           size="lg"
           variant="ghost"
           className={`rounded-full ${mode === 'stopwatch' ? 'bg-accent text-accent-foreground' : ''}`}
@@ -173,6 +185,10 @@ const Index = () => {
           <Timer className="w-6 h-6" />
         </Button>
         <Button
+          onClick={() => {
+            setShowSettings(true);
+            playHaptic();
+          }}
           size="lg"
           variant="ghost"
           className="rounded-full"
@@ -180,6 +196,15 @@ const Index = () => {
           <Settings className="w-6 h-6" />
         </Button>
       </div>
+      
+      {/* Settings Panel */}
+      <SettingsPanel 
+        isOpen={showSettings} 
+        onClose={() => {
+          setShowSettings(false);
+          playHaptic();
+        }} 
+      />
 
       {/* Charging indicator */}
       {isCharging && (
