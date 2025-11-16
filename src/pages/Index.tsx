@@ -140,7 +140,11 @@ const Index = () => {
 
   return (
     <div 
-      className="fixed inset-0 bg-background overflow-hidden"
+      className="fixed inset-0 w-full h-full bg-background overflow-hidden"
+      style={{ 
+        height: '100dvh',
+        width: '100vw',
+      }}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
