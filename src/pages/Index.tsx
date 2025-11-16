@@ -7,6 +7,7 @@ import { SettingsPanel } from '@/components/SettingsPanel';
 import { useFullscreen } from '@/hooks/useFullscreen';
 import { useBattery } from '@/hooks/useBattery';
 import { useSettings } from '@/hooks/useSettings';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import { Button } from '@/components/ui/button';
 import { Clock, Timer as TimerIcon, Hourglass, Settings } from 'lucide-react';
 
@@ -20,23 +21,34 @@ const Index = () => {
   const { enterFullscreen } = useFullscreen();
   const { isCharging } = useBattery();
   const { settings, playHaptic } = useSettings();
+  const { requestWakeLock, releaseWakeLock, isActive: isWakeLockActive } = useWakeLock();
   const [hasInitialized, setHasInitialized] = useState(false);
   const lastTapRef = useRef<number>(0);
   const hideTimeoutRef = useRef<number>();
-  const touchStartRef = useRef<{ x: number; y: number; distance: number } | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number; distance: number; time: number } | null>(null);
 
-  // Auto fullscreen on charging, exit on unplug
+  // Auto fullscreen on charging, exit on unplug, and wake lock
   useEffect(() => {
     if (isCharging && !hasInitialized) {
       enterFullscreen();
+      requestWakeLock();
       setHasInitialized(true);
     } else if (!isCharging && hasInitialized) {
-      // Exit fullscreen when unplugged
+      // Exit fullscreen and release wake lock when unplugged
       if (document.fullscreenElement) {
         document.exitFullscreen();
       }
+      releaseWakeLock();
     }
-  }, [isCharging, hasInitialized, enterFullscreen]);
+  }, [isCharging, hasInitialized, enterFullscreen, requestWakeLock, releaseWakeLock]);
+
+  // Keep screen awake when app is active
+  useEffect(() => {
+    requestWakeLock();
+    return () => {
+      releaseWakeLock();
+    };
+  }, []);
 
   // Auto-hide controls after 5 seconds
   useEffect(() => {
@@ -89,13 +101,15 @@ const Index = () => {
       touchStartRef.current = {
         x: touch1.clientX,
         y: touch1.clientY,
-        distance
+        distance,
+        time: Date.now()
       };
     } else if (e.touches.length === 1) {
       touchStartRef.current = {
         x: e.touches[0].clientX,
         y: e.touches[0].clientY,
-        distance: 0
+        distance: 0,
+        time: Date.now()
       };
     }
   }, []);
@@ -120,18 +134,32 @@ const Index = () => {
       const touch = e.changedTouches[0];
       const deltaX = touch.clientX - touchStartRef.current.x;
       const deltaY = touch.clientY - touchStartRef.current.y;
+      const deltaTime = Date.now() - touchStartRef.current.time;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      const velocity = distance / deltaTime;
       
-      // Swipe left/right to change modes
-      if (Math.abs(deltaX) > 100 && Math.abs(deltaY) < 50) {
+      // Swipe gesture - must be fast enough and mostly horizontal
+      if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 100 && velocity > 0.3) {
+        e.preventDefault();
         if (deltaX > 0) {
-          setMode(prev => prev === 'stopwatch' ? 'split' : prev === 'timer' ? 'stopwatch' : 'timer');
-          playHaptic();
+          // Swipe right - go to previous mode
+          setMode(prev => {
+            if (prev === 'stopwatch') return 'split';
+            if (prev === 'timer') return 'stopwatch';
+            return 'timer';
+          });
         } else {
-          setMode(prev => prev === 'split' ? 'stopwatch' : prev === 'stopwatch' ? 'timer' : 'split');
-          playHaptic();
+          // Swipe left - go to next mode
+          setMode(prev => {
+            if (prev === 'split') return 'stopwatch';
+            if (prev === 'stopwatch') return 'timer';
+            return 'split';
+          });
         }
-      } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
-        // Tap
+        playHaptic();
+        setShowControls(true); // Show controls briefly on mode change
+      } else if (distance < 10 && deltaTime < 300) {
+        // Tap - only if no significant movement and quick
         handleTap();
       }
     }
