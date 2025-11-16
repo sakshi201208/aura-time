@@ -93,9 +93,29 @@ All colors MUST be HSL.
     }
   }
   
+  /* Mobile portrait optimization */
+  @media (orientation: portrait) {
+    .clock-container {
+      max-width: 90vw;
+      max-height: 90vh;
+    }
+  }
+
+  /* Landscape optimizations for better fit */
+  @media (orientation: landscape) {
+    body {
+      font-size: clamp(12px, 2vw, 16px);
+    }
+    
+    .clock-container {
+      max-width: 45vw;
+      max-height: 80vh;
+    }
+  }
+
   @media (orientation: landscape) and (max-height: 500px) {
     body {
-      font-size: 14px;
+      font-size: 12px;
     }
   }
 }
