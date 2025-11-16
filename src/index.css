@@ -67,6 +67,12 @@ All colors MUST be HSL.
       min-height: -webkit-fill-available;
     }
   }
+  
+  @media (orientation: landscape) and (max-height: 500px) {
+    body {
+      font-size: 14px;
+    }
+  }
 }
 
 @layer utilities {
