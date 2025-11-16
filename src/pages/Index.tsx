@@ -2,14 +2,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { AnalogClock } from '@/components/AnalogClock';
 import { DigitalClock } from '@/components/DigitalClock';
 import { Stopwatch } from '@/components/Stopwatch';
+import { Timer } from '@/components/Timer';
 import { SettingsPanel } from '@/components/SettingsPanel';
 import { useFullscreen } from '@/hooks/useFullscreen';
 import { useBattery } from '@/hooks/useBattery';
 import { useSettings } from '@/hooks/useSettings';
 import { Button } from '@/components/ui/button';
-import { Clock, Timer, Settings } from 'lucide-react';
+import { Clock, Timer as TimerIcon, Hourglass, Settings } from 'lucide-react';
 
-type Mode = 'split' | 'stopwatch';
+type Mode = 'split' | 'stopwatch' | 'timer';
 
 const Index = () => {
   const [mode, setMode] = useState<Mode>('split');
@@ -24,15 +25,20 @@ const Index = () => {
   const hideTimeoutRef = useRef<number>();
   const touchStartRef = useRef<{ x: number; y: number; distance: number } | null>(null);
 
-  // Auto fullscreen and charging behavior
+  // Auto fullscreen on charging, exit on unplug
   useEffect(() => {
     if (isCharging && !hasInitialized) {
       enterFullscreen();
       setHasInitialized(true);
+    } else if (!isCharging && hasInitialized) {
+      // Exit fullscreen when unplugged
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      }
     }
   }, [isCharging, hasInitialized, enterFullscreen]);
 
-  // Auto-hide controls
+  // Auto-hide controls after 5 seconds
   useEffect(() => {
     if (showControls && !showSettings) {
       if (hideTimeoutRef.current) {
@@ -40,7 +46,7 @@ const Index = () => {
       }
       hideTimeoutRef.current = window.setTimeout(() => {
         setShowControls(false);
-      }, 3000);
+      }, 5000);
     }
     return () => {
       if (hideTimeoutRef.current) {
@@ -118,10 +124,10 @@ const Index = () => {
       // Swipe left/right to change modes
       if (Math.abs(deltaX) > 100 && Math.abs(deltaY) < 50) {
         if (deltaX > 0) {
-          setMode('split');
+          setMode(prev => prev === 'stopwatch' ? 'split' : prev === 'timer' ? 'stopwatch' : 'timer');
           playHaptic();
         } else {
-          setMode('stopwatch');
+          setMode(prev => prev === 'split' ? 'stopwatch' : prev === 'stopwatch' ? 'timer' : 'split');
           playHaptic();
         }
       } else if (Math.abs(deltaX) < 10 && Math.abs(deltaY) < 10) {
@@ -142,23 +148,25 @@ const Index = () => {
       {/* Main content */}
       <div className="w-full h-full flex items-center justify-center p-4">
         {mode === 'split' ? (
-          <div className="w-full h-full flex flex-col md:flex-row gap-8 items-center justify-center">
-            <div className="flex-1 flex items-center justify-center min-h-[300px]">
+          <div className="w-full h-full flex flex-col landscape:flex-row gap-4 landscape:gap-8 items-center justify-center">
+            <div className="flex-1 flex items-center justify-center min-h-[200px] landscape:min-h-[300px]">
               <AnalogClock scale={scale} />
             </div>
-            <div className="hidden md:block w-px h-3/4 bg-border" />
+            <div className="hidden landscape:block w-px h-3/4 bg-border" />
             <div className="flex-1 flex items-center justify-center">
               <DigitalClock scale={scale} />
             </div>
           </div>
-        ) : (
+        ) : mode === 'stopwatch' ? (
           <Stopwatch />
+        ) : (
+          <Timer />
         )}
       </div>
 
       {/* Controls overlay */}
       <div 
-        className={`fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 glass-effect rounded-full px-6 py-4 smooth-transition ${
+        className={`fixed bottom-4 landscape:bottom-8 left-1/2 -translate-x-1/2 flex gap-2 landscape:gap-4 glass-effect rounded-full px-4 landscape:px-6 py-3 landscape:py-4 smooth-transition ${
           showControls ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8 pointer-events-none'
         }`}
       >
@@ -171,7 +179,7 @@ const Index = () => {
           variant="ghost"
           className={`rounded-full ${mode === 'split' ? 'bg-accent text-accent-foreground' : ''}`}
         >
-          <Clock className="w-6 h-6" />
+          <Clock className="w-5 h-5 landscape:w-6 landscape:h-6" />
         </Button>
         <Button
           onClick={() => {
@@ -182,7 +190,18 @@ const Index = () => {
           variant="ghost"
           className={`rounded-full ${mode === 'stopwatch' ? 'bg-accent text-accent-foreground' : ''}`}
         >
-          <Timer className="w-6 h-6" />
+          <TimerIcon className="w-5 h-5 landscape:w-6 landscape:h-6" />
+        </Button>
+        <Button
+          onClick={() => {
+            setMode('timer');
+            playHaptic();
+          }}
+          size="lg"
+          variant="ghost"
+          className={`rounded-full ${mode === 'timer' ? 'bg-accent text-accent-foreground' : ''}`}
+        >
+          <Hourglass className="w-5 h-5 landscape:w-6 landscape:h-6" />
         </Button>
         <Button
           onClick={() => {
@@ -193,7 +212,7 @@ const Index = () => {
           variant="ghost"
           className="rounded-full"
         >
-          <Settings className="w-6 h-6" />
+          <Settings className="w-5 h-5 landscape:w-6 landscape:h-6" />
         </Button>
       </div>
       
